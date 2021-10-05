@@ -1,7 +1,10 @@
 from collections import defaultdict
+import json
 from logging import root
+from time import time
 from googleapiclient.discovery import build
 import os
+import time
 import urllib.request as request
 import pandas as pd
 from utils import video2channel, channel2videos 
@@ -13,14 +16,20 @@ video_url = "https://github.com/social-comp/YouTubeAudit-data/blob/master/all_re
 
 DEVELOPER_KEY_MONISH = 'AIzaSyDK9A2n8Yo3tRYvHfGMEkgmilPMAE9xjMI'
 DEVELOPER_KEY_ERIC = 'AIzaSyDmYvkb52fq6-V5xvzYGi5jTl6KLhytyMw'
+DEVELOPER_KEY_ASH = 'AIzaSyDyVtyy-qfWj3Iq_muhPIGnmyhhdzx6Mfs'
 
 youtube_monish = build('youtube', 'v3', developerKey=DEVELOPER_KEY_MONISH)
 youtube_eric = build('youtube', 'v3', developerKey=DEVELOPER_KEY_ERIC)
+youtube_ash = build('youtube', 'v3', developerKey=DEVELOPER_KEY_ASH)
 # categories_request = youtube_monish.videoCategories().list(part='snippet', regionCode='US', hl='en_US')
 #channel_request = youtube_monish.channels().list(part=['id', 'topicDetails', 'snippet'], )
 
+
+# cool_down_file = json.load('config.json')
+
+
 class YoutubeAuditData(object):
-    def __init__(self, root_path='./tmp', services=[youtube_monish]) -> None:
+    def __init__(self, root_path='./tmp', services=[youtube_monish, youtube_eric, youtube_ash]) -> None:
         service_idx = 0
         if not os.path.isdir(root_path):
             os.makedirs(root_path, exist_ok=True)
@@ -45,8 +54,6 @@ class YoutubeAuditData(object):
 
         channel_id_csv = os.path.join(root_path, 'channel_id.csv')
         
-
-
         if not os.path.isfile(channel_id_csv):
             for vid_url in vid_ids_df:
                 channel_id = video2channel(services[service_idx], vid_url)
@@ -69,10 +76,17 @@ class YoutubeAuditData(object):
             video_channel_dict = {'video_id':[], 'video_date':[], 'video_title': [], 'channel_id':[]}
 
             for channel_id in channel_id_df['channel_ids']:
-                try:
-                    video = channel2videos(services[service_idx], channel_id)                
-                except:
-                    video = channel2videos(service[service_idx], channel_id)
+                while True:
+                    try:
+                        video = channel2videos(services[service_idx], channel_id)      
+                        break          
+                    except:
+                        service_idx = (service_idx + 1) % len(services)
+
+                        if service_idx < len(services):
+                            service_idx += 1
+                        else:
+                            time.sleep(24*60*60 + 30)
                 video_channel_dict['video_id'] += video[0]
                 video_channel_dict['video_date'] += video[1]
                 video_channel_dict['video_title'] += video[2]
@@ -84,7 +98,7 @@ class YoutubeAuditData(object):
         
 
 if __name__ == "__main__":
-    data = YoutubeAuditData(service=[youtube_monish,youtube_eric])
+    data = YoutubeAuditData(services=[youtube_monish,youtube_eric,youtube_ash])
     print()
 
     
