@@ -167,18 +167,18 @@ class YoutubeAuditData(object):
         comment_video_csv = os.path.join(self.root_path, 'comment_video.csv')
 
         # Load from existing csv files if they exist
-        try:
+        if os.path.isfile(video_channel_csv):
             video_channel_data = pd.read_csv(video_channel_csv)
             video_channel_data = video_channel_data.reset_index().to_dict(orient='list')
-        except FileNotFoundError:
+        else:
             video_channel_data = {'video_id':[],
                                   'video_date':[],
                                   'video_title': [],
                                   'channel_id':[]}
-        try:
+        if os.path.isfile(comment_video_csv):
             comment_video_data = pd.read_csv(comment_video_csv)
             comment_video_data = comment_video_data.reset_index().to_dict(orient='list')
-        except FileNotFoundError:
+        else:
             comment_video_data = {'comment_text':[],
                                   'comment_datetime':[],
                                   'comment_likes':[],
