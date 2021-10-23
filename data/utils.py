@@ -1,5 +1,4 @@
 from googleapiclient.discovery import build
-
 def video2channel(service, videoid):
     """Given a video id, return the associated channel id"""
     
@@ -80,28 +79,4 @@ if __name__ == '__main__':
     DEVELOPER_KEY = 'AIzaSyDmYvkb52fq6-V5xvzYGi5jTl6KLhytyMw'
     youtube_monish = build('youtube', 'v3', developerKey=DEVELOPER_KEY)
     
-    #print(video2channel(youtube_monish, "ngDJIjbAvz4"))
-    
-    #res, res2, res3, res4 = channel2videos(youtube_monish, "UCoLUji8TYrgDy74_iiazvYA")
-    #print(len(res), len(res2), len(res3))
-    #print(res[:10])
-    #print(res2[:10])
-    #print(res3[:10])
-    #print(res4)
-    #res, res2, res3, res4 = channel2videos(youtube_monish, "UCoLUji8TYrgDy74_iiazvYA", res4)
-    #print(len(res), len(res2), len(res3))
-    #print(res4)
-    #res, res2, res3, res4 = channel2videos(youtube_monish, "UCoLUji8TYrgDy74_iiazvYA", res4)
-    #print(len(res), len(res2), len(res3))
-    #print(res4)
-    
-    #res, res2, res3, res4, res5 = video2comments(youtube_monish, "fzT5eFQCgQk")
-    #print(len(res))
-    #print(res[:10])
-    #print(res2[:10])
-    #print(res3[:10])
-    #print(res4[:10])
-    #print(res5)
-    #res, res2, res3, res4, res5 = video2comments(youtube_monish, "fzT5eFQCgQk", res5)
-    #print(len(res))
-    #print(res5)
+   
