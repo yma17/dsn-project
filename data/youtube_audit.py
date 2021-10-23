@@ -9,6 +9,7 @@ import time
 import urllib.request as request
 import pandas as pd
 from utils import video2channel, channel2videos, video2comments
+from driver import get_videos_from_channels, get_comments_from_videos
 
 # Links to raw data
 QUERIES_URL = (
@@ -66,7 +67,39 @@ class YoutubeAuditData(object):
 
         vid_ids_csv = self.get_vid_ids(video_url_csv)
         channel_id_csv = self.get_channel_ids(vid_ids_csv)
-        self.get_videos_and_comments(channel_id_csv)
+        channel_lst = list(pd.read_csv(channel_id_csv)["channel_ids"])
+        
+        video_id_csv = os.path.join(root_path, "video_id.csv")
+        if not os.path.isfile(video_id_csv):                
+            channel_video_lst = get_videos_from_channels(channel_lst) # channel x videos x dict[5]
+            video_tuple = {"channel_id":[], "video_id":[], "title":[], "views": [], "url":[], "post_date":[]}
+            for video_lst in channel_video_lst:
+                for video in video_lst:
+                    video_tuple['channel_id'] += [video['channel_id']]
+                    video_tuple['video_id'] += [video['video_id']]
+                    video_tuple['title'] += [video['title']]
+                    video_tuple['views'] += [video['views']]
+                    video_tuple['url'] += [video['url']]                
+                    video_tuple['post_date'] += [video['post_date']]
+                    
+            video_df = pd.DataFrame(video_tuple)
+            video_df.to_csv(video_id_csv)
+        else:
+            video_df = pd.read_csv(video_id_csv)
+
+        comment_csv = os.path.join(root_path, "comment.csv")
+        if not os.path.isfile(comment_csv):
+            comment_tuple = {"video_id":[], "username":[], "comment":[]}
+            for videos in video_lst:
+                comment_lst = get_comments_from_videos(videos)
+                comment_tuple['video_id'] += [c['video_id'] for c in comment_lst]
+                comment_tuple['username'] += [c['username'] for c in comment_lst]
+                comment_tuple['comment'] += [c['comment'] for c in comment_lst]
+            comment_df = pd.DataFrame(comment_tuple)
+            comment_df.to_csv(comment_csv)
+        else:
+            comment_df = pd.read_csv(comment_csv)
+
 
     def save_state(self, path="./state.json") -> None:
         """Save data creation state to .json file."""
