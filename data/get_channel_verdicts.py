@@ -57,7 +57,7 @@ if __name__ == '__main__':
     else:
         data_old = {"channel_id": [], "verdict": []}
     
-    start_idx = 3  # can change
+    start_idx = 0  # can change
 
     verdict_lst = get_channel_verdicts(channel_lst[start_idx:], data_old)
     df = pd.DataFrame(
