@@ -73,7 +73,7 @@ class YoutubeAuditData(object):
         if not os.path.isfile(video_id_csv):                
             channel_video_lst = get_videos_from_channels(channel_lst) # channel x videos x dict[5]
             video_tuple = {"channel_id":[], "video_id":[], "title":[], "views": [], "url":[], "post_date":[]}
-            for video_lst in channel_video_lst:
+            for i, video_lst in enumerate(channel_video_lst):
                 for video in video_lst:
                     video_tuple['channel_id'] += [video['channel_id']]
                     video_tuple['video_id'] += [video['video_id']]
@@ -81,7 +81,7 @@ class YoutubeAuditData(object):
                     video_tuple['views'] += [video['views']]
                     video_tuple['url'] += [video['url']]                
                     video_tuple['post_date'] += [video['post_date']]
-                    
+                
             video_df = pd.DataFrame(video_tuple)
             video_df.to_csv(video_id_csv)
         else:
@@ -90,7 +90,7 @@ class YoutubeAuditData(object):
         comment_csv = os.path.join(root_path, "comment.csv")
         if not os.path.isfile(comment_csv):
             comment_tuple = {"video_id":[], "username":[], "comment":[]}
-            for videos in video_lst:
+            for i, videos in enumerate(video_lst):
                 comment_lst = get_comments_from_videos(videos)
                 comment_tuple['video_id'] += [c['video_id'] for c in comment_lst]
                 comment_tuple['username'] += [c['username'] for c in comment_lst]

@@ -27,7 +27,6 @@ def scroll_page(driver):
 def get_videos_from_channel(channel_id):
     chrome_options = Options()
     chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
     driver = webdriver.Chrome(DRIVER_PATH, options=chrome_options)
 
     scroll_page(driver)
@@ -57,7 +56,7 @@ def get_videos_from_channel(channel_id):
                 }]
                 # time.sleep(5)
             except Exception as e:
-                print(e)
+                print("ERROR FROM PYTHON", e)
     driver.close()
     return video_lst
 
@@ -65,7 +64,6 @@ def get_comments_from_videos(video_id):
     # Source: https://github.com/dddat1017/Scraping-Youtube-Comments/blob/master/main.py
     chrome_options = Options()
     chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--window-size=%s" % WINDOW_SIZE)
     driver = webdriver.Chrome(DRIVER_PATH, options=chrome_options)
     
     url = f"https://www.youtube.com/watch?v={video_id}"
@@ -75,7 +73,7 @@ def get_comments_from_videos(video_id):
     try:  # extract comments
         comment_section = driver.find_element_by_xpath('//*[@id="comments"]')
     except Exception as e:
-        print(e)
+        print("ERROR FROM PYTHON", e)
 
     # Scroll into view the comment section, then allow some time
     # for everything to be loaded as necessary.
