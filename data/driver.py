@@ -25,6 +25,7 @@ def scroll_page(driver):
         time.sleep(2)
 
 def get_videos_from_channel(channel_id):
+    print("CURRENT CHANNEL BEING LOOKED AT", channel_id)
     chrome_options = Options()
     chrome_options.add_argument("--headless")
     driver = webdriver.Chrome(DRIVER_PATH, options=chrome_options)
@@ -61,6 +62,7 @@ def get_videos_from_channel(channel_id):
     return video_lst
 
 def get_comments_from_videos(video_id):
+    print("CURRENT VIDEO BEING LOOKED AT:", video_id)
     # Source: https://github.com/dddat1017/Scraping-Youtube-Comments/blob/master/main.py
     chrome_options = Options()
     chrome_options.add_argument("--headless")
