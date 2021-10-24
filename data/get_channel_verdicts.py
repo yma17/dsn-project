@@ -15,9 +15,8 @@ CHANNEL_VERDICTS_CSV = "./tmp/channel_verdicts.csv"
 # 5 - most likely yes
 VERDICTS = ["1", "2", "3", "4", "5"]
 
-def get_channel_verdict(channel_id):
+def get_channel_verdict(channel_id, driver):
     print("CURRENT CHANNEL BEING LOOKED AT", channel_id)
-    driver = webdriver.Chrome(DRIVER_PATH)
 
     url = f"https://www.youtube.com/channel/{channel_id}/videos"
     driver.get(url)
@@ -29,10 +28,11 @@ def get_channel_verdict(channel_id):
         else:
             print("Invalid input, enter again")
 
-    driver.close()
     return v
 
 def get_channel_verdicts(channel_lst, data_old, save_interval=20):
+    driver = webdriver.Chrome(DRIVER_PATH)
+
     verdict_lst = []
     for i, channel_id in enumerate(channel_lst):
         if i % save_interval == 0:
@@ -46,7 +46,9 @@ def get_channel_verdicts(channel_lst, data_old, save_interval=20):
                 "channel_id": data_old["channel_id"] + channel_lst[:i],
                 "verdict": data_old["verdict"] + verdict_lst})
             df.to_csv(CHANNEL_VERDICTS_CSV)
-        verdict_lst += [get_channel_verdict(channel_id)]
+        verdict_lst += [get_channel_verdict(channel_id, driver)]
+
+    driver.close()
     return verdict_lst
 
 if __name__ == '__main__':
