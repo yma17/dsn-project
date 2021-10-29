@@ -174,6 +174,11 @@ class YouTubeBaselineData(object):
                 print(i, "/", len(video_ids))
                 try:
                     res = video2comments(self.next_serv(), video_id)
+                    
+                    # Remove newline characters from comments
+                    for i in range(len(res[0])):
+                        res[0][i] = res[0][i].replace("\n", " ")
+                    
                     comment_dict["video_id"] += [video_id] * len(res[0])
                     comment_dict["comment"] += res[0]
                 except HttpError:  # don't include vids with disabled comments
