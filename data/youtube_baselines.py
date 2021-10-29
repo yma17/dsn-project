@@ -77,6 +77,8 @@ class YouTubeBaselineData(object):
     def get_baseline1_data(self):
         """Get working baseline 1 data, omitting removed/inaccessible videos."""
 
+        # NOTE: need to manually rename columns to be lowercase later
+
         baseline1_csv = os.path.join(self.root_path, "baseline1_videos.csv")
         
         if not os.path.isfile(baseline1_csv):
