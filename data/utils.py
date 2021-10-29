@@ -1,4 +1,19 @@
 from googleapiclient.discovery import build
+
+def get_video_status(service, videoid):
+    """
+    Given a video id, check if the video is able to be accessed.
+    Return 1 if yes, 0 if no.
+    """
+
+    request = service.videos().list(
+        part="snippet",
+        id=videoid
+    )
+    response = request.execute()
+
+    return response["pageInfo"]["totalResults"] > 0
+
 def video2channel(service, videoid):
     """Given a video id, return the associated channel id"""
     
