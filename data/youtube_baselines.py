@@ -12,8 +12,10 @@ import os
 import re
 import pandas as pd
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 import urllib.request as request
-from utils import get_video_status
+from CaptionScraper import captionScraper
+from utils import get_video_status, video2comments
 
 # Links to raw data - baseline 1
 _911_URL = "https://raw.githubusercontent.com/jagtapraj123/YT-Misinformation/main/dataset/data_911.csv"
@@ -75,7 +77,9 @@ class YouTubeBaselineData(object):
     def get_baseline1_data(self):
         """Get working baseline 1 data, omitting removed/inaccessible videos."""
 
-        baseline1_csv = os.path.join(self.root_path, "baseline1.csv")
+        # NOTE: need to manually rename columns to be lowercase later
+
+        baseline1_csv = os.path.join(self.root_path, "baseline1_videos.csv")
         
         if not os.path.isfile(baseline1_csv):
             df_overall = pd.DataFrame()
@@ -158,11 +162,49 @@ class YouTubeBaselineData(object):
 
     def create_full_baseline1_data(self):
         """Augment baseline 1 data with baseline 2 features."""
-        pass
+        
+        baseline1_videos_csv = os.path.join(self.root_path, "baseline1_videos.csv")
+        baseline1_comments_csv = os.path.join(self.root_path, "baseline1_comments.csv")
+
+        if not os.path.isfile(baseline1_comments_csv):
+
+            df_videos = pd.read_csv(baseline1_videos_csv)
+
+            comment_dict = {"video_id": [], "comment": []}
+            video_ids = df_videos["Video_ID"].to_list()
+            for i, video_id in enumerate(video_ids):
+                print(i, "/", len(video_ids))
+                try:
+                    res = video2comments(self.next_serv(), video_id)
+                    
+                    # Remove newline characters from comments
+                    for i in range(len(res[0])):
+                        res[0][i] = res[0][i].replace("\n", " ")
+                    
+                    comment_dict["video_id"] += [video_id] * len(res[0])
+                    comment_dict["comment"] += res[0]
+                except HttpError:  # don't include vids with disabled comments
+                    pass
+                
+            df_comments = pd.DataFrame(comment_dict)
+            df_comments.to_csv(baseline1_comments_csv)
 
     def create_full_baseline2_data(self):
         """Augment baseline 2 data with baseline 1 features."""
-        pass
+        
+        baseline2_videos_csv = os.path.join(self.root_path, "baseline2_videos.csv")
+        baseline2_videos_cap_csv = os.path.join(self.root_path, "baseline2_videos_captions.csv")
+        
+        if not os.path.isfile(baseline2_videos_cap_csv):
+            df_videos = pd.read_csv(baseline2_videos_csv)
+            
+            df_videos["captions"] = df_videos["video_id"].apply(captionScraper)
+
+            # drop videos with no captions
+            df_videos["captions"] = df_videos["captions"].apply(lambda x: None if x == "" else x)
+            df_videos = df_videos.dropna(subset=["captions"])
+
+            df_videos.to_csv(baseline2_videos_cap_csv)
 
     def create_full_data(self):
         """Return complete dataset for project experiments."""
@@ -173,3 +215,5 @@ if __name__ == "__main__":
     data = YouTubeBaselineData()
     data.get_baseline1_data()
     data.get_baseline2_data()
+    data.create_full_baseline1_data()
+    data.create_full_baseline2_data()
