@@ -141,6 +141,8 @@ test_set = ['UC-SJ6nODDmufqBzPBwCvYvQ',
 'UCRtsZ5Iak9wSLsQLQ3XOAeA',
 'UC1h3juWLuF-Z-KSJd8GErtw']
 
+comment_test_set = ['']
+
 if __name__ == "__main__":
     video_dict = get_videos_from_channels(test_set)
     # driver = webdriver.Chrome(DRIVER_PATH, )
