@@ -1,43 +1,50 @@
-import os
 import pandas as pd
 import numpy as np
-from sentence_transformers import SentenceTransformer, util
-from sklearn.metrics.pairwise import cosine_similarity
-join = os.path.join
+from sentence_transformers import SentenceTransformer
+
+import re
+from emoji import demojize
 
 
-TEST_CSV = 'baseline_comments.csv'
+model = SentenceTransformer("sentence-transformers/paraphrase-xlm-r-multilingual-v1", device='cuda')
 
+def convert_to_tokens(txt, chunk=True):
+    if chunk or '.' not in txt:
+        sentences = chunk_txt(txt)
+    else:
+        sentences = txt.split('.')
+    return model.encode(sentences)
 
-class commentProcessor(object):
-    def __init__(self):
-        self.model = SentenceTransformer("sentence-transformers/paraphrase-xlm-r-multilingual-v1", device='cuda')
+def clean_txt(txt):
+    txt = demojize(txt)
+    txt = txt.lower()
+    txt = re.sub(r"https?://\S+", "", txt)
+    txt = re.sub(r"<a[^>]*>(.*?)</a>", "", txt)
+    
+    txt = re.sub(r"<.*?>", "", txt)
+    txt = " ".join(txt.split())
+    txt = re.sub(r"[^A-Za-z0-9\s]+", "", txt)
+    return txt
 
-    def __call__(self, summary, comment):
-        embedd1 = self.model.encode(summary)
-        embedd2 = self.model.encode(comment)
-        k = util.cos_sim(embedd1, embedd2)
-        return k
-
-
-
-
+def chunk_txt(txt):
+    lst = txt.split(' ')
+    chunks = [' '.join(lst[x: x+128]) for x in range(0, len(lst), 128)]
+    return chunks
 
 if __name__ == '__main__':
-    comment_df = pd.read_csv('./tmp/baseline1_comments.csv')
-    video_df = pd.read_csv('./tmp/baseline1_videos.csv')[['video_id', 'title', 'captions']].to_numpy()
-    comment_process = commentProcessor()
-
+    comment_df = pd.read_csv('./tmp/baseline1_comments.tsv', sep='\t', header=0)
+    video_df = pd.read_csv('./tmp/baseline1_videos.tsv', sep='\t')[['video_id', 'title', 'captions']].to_numpy()
     comment_embeddings = {'video_id': [], 'idx': []}
     caption_embeddings = {'video_id': [], 'idx': []}
     comment_idx = 0
     caption_idx = 0
     
     embeddings = {"captions":[], "titles":[], "comments":[]}
-
+    
     for video_id, video_title, captions in video_df:
-        caption_embedd = comment_process.model.encode(captions.strip('>'))
-        title_embedd = comment_process.model.encode(video_title)
+        caption_embedd = convert_to_tokens(captions)
+        title_embedd = convert_to_tokens(clean_txt(video_title), False)
+
         embeddings['captions'].append(caption_embedd)
         embeddings['titles'].append(title_embedd)
 
@@ -48,15 +55,15 @@ if __name__ == '__main__':
         comment_seq = comment_df.loc[comment_df['video_id'] == video_id]['comment']
         for comment in comment_seq:
             try:
-                comment_embedd = comment_process.model.encode(str(comment).split('.'))
+                comment_embedd = convert_to_tokens(clean_txt(str(comment)), False)
                 embeddings['comments'].append(comment_embedd)
                 comment_embeddings['video_id'].append(video_id)
                 comment_embeddings['idx'].append(comment_idx)
                 comment_idx += 1
-            except:
-                print(comment)
-                raise TypeError("comment is not the right type")
-        
+            except Exception as e:
+                print(e, clean_txt(comment))
+                
+       
     comment_embedd_df = pd.DataFrame(comment_embeddings)
     caption_embedd_df = pd.DataFrame(caption_embeddings)
     comment_embedd_df.to_csv('./comment_embedd_1.csv')
