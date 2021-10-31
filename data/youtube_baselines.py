@@ -77,8 +77,6 @@ class YouTubeBaselineData(object):
     def get_baseline1_data(self):
         """Get working baseline 1 data, omitting removed/inaccessible videos."""
 
-        # NOTE: need to manually rename columns to be lowercase later
-
         baseline1_csv = os.path.join(self.root_path, "baseline1_videos.csv")
         
         if not os.path.isfile(baseline1_csv):
@@ -102,14 +100,17 @@ class YouTubeBaselineData(object):
 
                 df_overall = pd.concat([df_overall, df])
 
-            df_overall.to_csv(baseline1_csv)
-            
-        return pd.read_csv(baseline1_csv)
+            df_overall = df_overall.rename(columns={
+                "Topic": "topic", "Title": "title", "Num_of_Views": "num_views",
+                "Likes": "likes", "Dislikes": "dislikes", "Captions": "captions",
+                "Number_of_Comments": "num_comments", "Video_ID": "video_id"})
+
+            df_overall.to_csv(baseline1_csv, sep='t')
 
     def get_baseline2_data(self):
         """Get working baseline 2 data, omitting removed/inaccessible videos."""
 
-        baseline2_videos_csv = os.path.join(self.root_path, "baseline2_videos.csv")
+        baseline2_videos_csv = os.path.join(self.root_path, "baseline2_videos_nocap.csv")
         baseline2_comments_csv = os.path.join(self.root_path, "baseline2_comments.csv")
 
         if not os.path.isfile(baseline2_videos_csv):
@@ -155,10 +156,8 @@ class YouTubeBaselineData(object):
             #    comments_100.append(comments_words)
             #df_videos["comments_100"] = comments_100
 
-            df_videos.to_csv(baseline2_videos_csv)
-            df_comments.to_csv(baseline2_comments_csv)
-
-        return pd.read_csv(baseline2_videos_csv), pd.read_csv(baseline2_comments_csv)
+            df_videos.to_csv(baseline2_videos_csv, sep='t')
+            df_comments.to_csv(baseline2_comments_csv, sep='t')
 
     def create_full_baseline1_data(self):
         """Augment baseline 1 data with baseline 2 features."""
@@ -168,18 +167,18 @@ class YouTubeBaselineData(object):
 
         if not os.path.isfile(baseline1_comments_csv):
 
-            df_videos = pd.read_csv(baseline1_videos_csv)
+            df_videos = pd.read_csv(baseline1_videos_csv, sep='t')
 
             comment_dict = {"video_id": [], "comment": []}
-            video_ids = df_videos["Video_ID"].to_list()
+            video_ids = df_videos["video_id"].to_list()
             for i, video_id in enumerate(video_ids):
-                print(i, "/", len(video_ids))
+                #print(i, "/", len(video_ids))
                 try:
                     res = video2comments(self.next_serv(), video_id)
                     
-                    # Remove newline characters from comments
+                    # Remove \r from comments
                     for i in range(len(res[0])):
-                        res[0][i] = res[0][i].replace("\n", " ")
+                        res[0][i] = res[0][i].replace("\r", " ")
                     
                     comment_dict["video_id"] += [video_id] * len(res[0])
                     comment_dict["comment"] += res[0]
@@ -187,29 +186,32 @@ class YouTubeBaselineData(object):
                     pass
                 
             df_comments = pd.DataFrame(comment_dict)
-            df_comments.to_csv(baseline1_comments_csv)
+            df_comments.to_csv(baseline1_comments_csv, sep='t')
 
     def create_full_baseline2_data(self):
         """Augment baseline 2 data with baseline 1 features."""
         
-        baseline2_videos_csv = os.path.join(self.root_path, "baseline2_videos.csv")
-        baseline2_videos_cap_csv = os.path.join(self.root_path, "baseline2_videos_captions.csv")
+        baseline2_videos_csv = os.path.join(self.root_path, "baseline2_videos_nocap.csv")
+        baseline2_comments_csv = os.path.join(self.root_path, "baseline2_comments.csv")
+        baseline2_videos_cap_csv = os.path.join(self.root_path, "baseline2_videos.csv")
         
         if not os.path.isfile(baseline2_videos_cap_csv):
-            df_videos = pd.read_csv(baseline2_videos_csv)
+            df_videos = pd.read_csv(baseline2_videos_csv, sep='t')
             
             df_videos["captions"] = df_videos["video_id"].apply(captionScraper)
 
             # drop videos with no captions
             df_videos["captions"] = df_videos["captions"].apply(lambda x: None if x == "" else x)
             df_videos = df_videos.dropna(subset=["captions"])
+            final_id_list = set(df_videos["video_id"].to_list())
 
-            df_videos.to_csv(baseline2_videos_cap_csv)
+            # drop comments from videos with no captions
+            df_comments = pd.read_csv(baseline2_comments_csv, sep='t')
+            df_comments["video_id"] = df_comments["video_id"].apply(lambda x: x if x in final_id_list else None)
+            df_comments = df_comments.dropna(subset=["video_id"])
 
-    def create_full_data(self):
-        """Return complete dataset for project experiments."""
-        # Need to remove duplicate videos
-        pass
+            df_videos.to_csv(baseline2_videos_cap_csv, sep='t')
+            df_comments.to_csv(baseline2_comments_csv, sep='t')
 
 if __name__ == "__main__":
     data = YouTubeBaselineData()
