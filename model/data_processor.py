@@ -67,8 +67,7 @@ if __name__ == '__main__':
     comment_embedd_df = pd.DataFrame(comment_embeddings)
     caption_embedd_df = pd.DataFrame(caption_embeddings)
     comment_embedd_df.to_csv('./comment_embedd_1.csv')
-    caption_embedd_df.to_csv('./caption_embedd_1\
-        .csv')
+    caption_embedd_df.to_csv('./caption_embedd_1.csv')
 
     captions = np.array(embeddings['captions'], dtype=object)
     titles = np.array(embeddings['titles'], dtype=object)
