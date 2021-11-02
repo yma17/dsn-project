@@ -66,7 +66,7 @@ if __name__ == '__main__':
             try:                
                 comment_embedd = convert_to_tokens(clean_txt(str(comment)), False)
                 comment_idx += 1
-                embeddings['comments'].append(comment_embedd)
+                embeddings['comments'].append(comment_embed)
             except Exception as e:
                 print(e, clean_txt(comment))
 
