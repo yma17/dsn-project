@@ -101,7 +101,7 @@ class YoutubeAuditData(object):
 
             # drop videos with no captions
             caption_df["captions"] = caption_df["captions"].apply(lambda x: None if x == "" else x)
-            caption_df = caption_df.dropnaz(subset=["captions"])
+            caption_df = caption_df.dropna(subset=["captions"])
             
             caption_df.to_csv(caption_csv, index=False)
         else:
