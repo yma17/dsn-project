@@ -32,16 +32,19 @@ def captionScraper(videoID):
         
         # Caption returned is timestamped.
         # Removing timestamps and compile a string of caption.
-        if found:
-            caption = ""
-            for each in captionDict:
-                text = each['text']
-                if ('[' not in text) and (']' not in text):
-                    caption = caption + ' ' + text
-            # print("Processed Caption : ", caption)
-            caption = ' '.join(caption.split('\n'))
-            return str(caption.strip())
-        else:
+        try:
+            if found:
+                caption = ""
+                for each in captionDict:
+                    text = each['text']
+                    if ('[' not in text) and (']' not in text):
+                        caption = caption + ' ' + text
+                # print("Processed Caption : ", caption)
+                caption = ' '.join(caption.split('\n'))
+                return str(caption.strip())
+            else:
+                return None
+        except:
             return None
     except:
         return None

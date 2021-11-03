@@ -5,7 +5,9 @@ from time import time
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
-import time
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
+from CaptionScraper import captionScraper
 import urllib.request as request
 import pandas as pd
 from utils import video2channel, channel2videos, video2comments
@@ -26,6 +28,8 @@ DEVELOPER_KEY_ASH = "AIzaSyDyVtyy-qfWj3Iq_muhPIGnmyhhdzx6Mfs"
 youtube_monish = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH)
 youtube_eric = build("youtube", "v3", developerKey=DEVELOPER_KEY_ERIC)
 youtube_ash = build("youtube", "v3", developerKey=DEVELOPER_KEY_ASH)
+
+tqdm.pandas()
 
 
 class YoutubeAuditData(object):
@@ -87,18 +91,34 @@ class YoutubeAuditData(object):
         else:
             video_df = pd.read_csv(video_id_csv)
 
-        comment_csv = os.path.join(root_path, "comment.csv")
-        if not os.path.isfile(comment_csv):
-            comment_tuple = {"video_id":[], "username":[], "comment":[]}
-            for i, videos in enumerate(video_lst):
-                comment_lst = get_comments_from_videos(videos)
-                comment_tuple['video_id'] += [c['video_id'] for c in comment_lst]
-                comment_tuple['username'] += [c['username'] for c in comment_lst]
-                comment_tuple['comment'] += [c['comment'] for c in comment_lst]
-            comment_df = pd.DataFrame(comment_tuple)
-            comment_df.to_csv(comment_csv)
+        caption_csv = os.path.join(root_path, "caption.csv")
+        if not os.path.isfile(caption_csv):
+            caption_df = video_df[["video_id"]].copy()
+
+            with ThreadPoolExecutor(max_workers=os.cpu_count()) as the:
+                res = the.map(captionScraper, caption_df["video_id"].to_list())
+            caption_df["captions"] = pd.Series((v for v in res))
+
+            # drop videos with no captions
+            caption_df["captions"] = caption_df["captions"].apply(lambda x: None if x == "" else x)
+            caption_df = caption_df.dropnaz(subset=["captions"])
+            
+            caption_df.to_csv(caption_csv, index=False)
         else:
-            comment_df = pd.read_csv(comment_csv)
+            caption_df = pd.read_csv(caption_csv)
+
+        #comment_csv = os.path.join(root_path, "comment.csv")
+        #if not os.path.isfile(comment_csv):
+        #    comment_tuple = {"video_id":[], "username":[], "comment":[]}
+        #    for i, videos in enumerate(video_lst):
+        #        comment_lst = get_comments_from_videos(videos)
+        #        comment_tuple['video_id'] += [c['video_id'] for c in comment_lst]
+        #        comment_tuple['username'] += [c['username'] for c in comment_lst]
+        #        comment_tuple['comment'] += [c['comment'] for c in comment_lst]
+        #    comment_df = pd.DataFrame(comment_tuple)
+        #    comment_df.to_csv(comment_csv)
+        #else:
+        #    comment_df = pd.read_csv(comment_csv)
 
 
     def save_state(self, path="./state.json") -> None:
