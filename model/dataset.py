@@ -3,9 +3,11 @@ import torch
 from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
+from torch.utils.data.sampler import WeightedRandomSampler
 
 join = os.path.join
-max_len = 256
+max_len = 128
+
 
 
 def test_train_split(df):
@@ -41,6 +43,12 @@ class dataset(Dataset):
         self.title_data = [np.load(join(root, 'title_embedd.npy'), allow_pickle=True) for root in self.roots]
         self.comment_data = [np.load(join(root, 'comments_embedd.npy'), allow_pickle=True) for root in self.roots]
     
+    def labels(self):
+        label = []
+        for df in self._df:
+            label += df['label'].to_list()
+        return label
+
     def embedding_size(self):
         return self.caption_data[0][0][0].shape[-1]
 
@@ -80,7 +88,7 @@ class dataset(Dataset):
         label_raw = int(video_df['label'])
 
         if label_raw == -1:
-            label = 2
+            label = 0
         else:
             label = label_raw
         
@@ -90,4 +98,16 @@ class dataset(Dataset):
 
 
         return tdata, torch.tensor(label, dtype=torch.long)
+
+
+def weighted_sampler(dataset):    
+    labels = dataset.labels()
+    class_counts = [labels.count(0) +  labels.count(-1), labels.count(1)]
+    num_samples = len(labels)
+    class_weights = [num_samples / class_counts[i] for i in range(len(class_counts))]
+    weights = [class_weights[labels[i]] for i in range(int(num_samples))]
+    sampler = WeightedRandomSampler(torch.DoubleTensor(weights), int(num_samples))
+    return sampler
+
+
 

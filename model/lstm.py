@@ -8,13 +8,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
-from dataset import dataset
+from dataset import dataset, weighted_sampler, max_len
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 join = os.path.join
-max_len = 256
 
 class LSTM(nn.Module):
 
@@ -26,8 +25,9 @@ class LSTM(nn.Module):
                             batch_first=True,
                             bidirectional=True)
         self.drop = nn.Dropout(p=0.2)
-
-        self.fc = nn.Linear(2*dimension, 3)
+        self.fc_1 = nn.Linear(2*dimension, 2*dimension)
+        self.fc_act_1 = nn.LeakyReLU(0.2)
+        self.fc = nn.Linear(2*dimension, 2)
         self.fc_act = nn.Sigmoid()
 
 
@@ -37,8 +37,8 @@ class LSTM(nn.Module):
         out_forward = output[range(len(output)), text_len - 1, :self.dimension]
         out_reverse = output[:, 0, self.dimension:]
         out_reduced = torch.cat((out_forward, out_reverse), 1)
+        self.fc_act_1(out_reduced)
         text_fea = self.drop(out_reduced)
-
         text_fea = self.fc(text_fea)
         
         # text_fea = torch.squeeze(text_fea, 1)
@@ -48,15 +48,16 @@ class LSTM(nn.Module):
 if __name__ == "__main__":
     data_set = dataset(random_idx=True)
     test_set = dataset(random_idx=True, test=True)
-
-    data_loader = DataLoader(data_set, batch_size=32, drop_last=True, shuffle=True,  pin_memory=True)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=True, drop_last=True, pin_memory=True)
+    sampler = weighted_sampler(data_set)
+    samper_1 = weighted_sampler(test_set)
+    data_loader = DataLoader(data_set, batch_size=32, drop_last=True,  pin_memory=True)
+    test_loader = DataLoader(test_set, batch_size=32, drop_last=True, pin_memory=True, shuffle=True)
 
     n_epochs = 1000
     eval_every = 50
     embedding_size = 768
     nTokens = 2
-    model = LSTM(embedding_size, 512, n_layers=4)
+    model = LSTM(embedding_size, 1024, n_layers=8)
     running_loss = 0.0
     criterion = nn.CrossEntropyLoss()
     test_criterion = nn.CrossEntropyLoss()
@@ -102,7 +103,7 @@ if __name__ == "__main__":
                         truth = _y.cpu().numpy()
                         running_f1 += f1_score(truth, pred, average='weighted')
                         running_acc += accuracy_score(truth, pred)
-                        running_rec += recall_score(truth, pred, average="weighted")
+                        running_rec += recall_score(truth, pred, average="weighted", zero_division=0)
                         running_pre += precision_score(truth, pred, average="weighted", zero_division=0)
                         valid_running_loss += _loss.mean(0).item()
                 model.train()
