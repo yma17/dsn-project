@@ -17,12 +17,16 @@ def test_train_split(df):
     return train, test
     
 class dataset(Dataset):
-    def __init__(self, data_dirs=['./baseline1', './baseline2'], test=False, random_idx=False):
+    def __init__(self, data_dirs=['./baseline1', './baseline2'], test=False, random_idx=False, id=-1):
         self.roots = data_dirs
         self.random_idx = random_idx if not test else False
         self._df = []
         self.video_ids = {}
-
+        if id == 0 and test:
+            self.roots = ['./baseline1']
+        if id == 1 and test:
+            self.roots = ['./baseline2']
+        
         for i, root in enumerate(self.roots):
             if test:
                 emb_csv = join(root, 'test.csv')
@@ -34,11 +38,11 @@ class dataset(Dataset):
                 train.to_csv(join(root, 'train.csv'), sep='\t')
                 _test.to_csv(join(root, 'test.csv'), sep='\t')
             df = pd.read_csv(emb_csv, sep='\t')
-            video_ids = df['video_id']
+            video_ids = df['video_id'].to_list()
             for id in video_ids:
                 self.video_ids[id] = i
             self._df.append(df)
-        
+        print(len(self.video_ids))
         self.caption_data = [np.load(join(root, 'caption_embedd.npy'), allow_pickle=True) for root in self.roots]
         self.title_data = [np.load(join(root, 'title_embedd.npy'), allow_pickle=True) for root in self.roots]
         self.comment_data = [np.load(join(root, 'comments_embedd.npy'), allow_pickle=True) for root in self.roots]

@@ -68,17 +68,14 @@ def scrubbed():
     pbar = tqdm(total=caption_df.shape[0], desc='embedding')
 
     for video_id, caption in caption_df:
-        _df = df[df['video_id'] == video_id]
         msk = df['video_id'] == video_id
-        if pd.isnull(_df['cap_idx']).any():    
-            embeddings['captions'] = convert_to_tokens(caption)
-            df.loc[msk, 'cap_idx'] = int(caption_idx)  
-            caption_idx += 1
-        if pd.isnull(_df['title_idx']).any():
-            title = video_df.loc[video_id == video_df['video_id']]['title']            
-            embeddings['titles'] = convert_to_tokens(clean_txt(str(title)), False)
-            df.loc[msk, 'title_idx'] = int(caption_idx)                  
-            title_idx += 1
+        embeddings['captions'] = convert_to_tokens(caption)
+        df.loc[msk, 'cap_idx'] = int(caption_idx)  
+        caption_idx += 1
+        title = video_df.loc[video_id == video_df['video_id']]['title']            
+        embeddings['titles'] = convert_to_tokens(clean_txt(str(title)), False)
+        df.loc[msk, 'title_idx'] = int(caption_idx)                  
+        title_idx += 1
         pbar.update(1)
         
 

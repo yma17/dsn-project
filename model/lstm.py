@@ -47,10 +47,11 @@ class LSTM(nn.Module):
 
 if __name__ == "__main__":
     data_set = dataset(random_idx=True)
-    test_set = dataset(random_idx=True, test=True)
+    test_set = dataset(random_idx=True, test=True, id=1)
+    
     sampler = weighted_sampler(data_set)
     samper_1 = weighted_sampler(test_set)
-    data_loader = DataLoader(data_set, batch_size=32, drop_last=True,  pin_memory=True)
+    data_loader = DataLoader(data_set, batch_size=32, drop_last=True,  pin_memory=True, sampler=sampler)
     test_loader = DataLoader(test_set, batch_size=32, drop_last=True, pin_memory=True, shuffle=True)
 
     n_epochs = 1000
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     test_criterion = nn.CrossEntropyLoss()
 
     model.to(device)
-    model.train()
+    model.train()   
     
     optimizer = optim.Adam(model.parameters(), lr=0.0001)
 
