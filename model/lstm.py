@@ -46,12 +46,12 @@ class LSTM(nn.Module):
         return text_fea
 
 if __name__ == "__main__":
-    data_set = dataset(random_idx=True)
-    test_set = dataset(random_idx=True, test=True, id=1)
+    data_set = dataset(data_dirs=['./baseline1'], random_idx=True)
+    test_set = dataset(random_idx=True, test=True, id=0)
     
     sampler = weighted_sampler(data_set)
     samper_1 = weighted_sampler(test_set)
-    data_loader = DataLoader(data_set, batch_size=32, drop_last=True,  pin_memory=True, sampler=sampler)
+    data_loader = DataLoader(data_set, batch_size=32, drop_last=True,  pin_memory=True)
     test_loader = DataLoader(test_set, batch_size=32, drop_last=True, pin_memory=True, shuffle=True)
 
     n_epochs = 1000
