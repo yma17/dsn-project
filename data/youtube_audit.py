@@ -1,17 +1,18 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 import json
 from logging import root
 from time import time
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
-import json
+import re
 from glob import glob
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from CaptionScraper import captionScraper
 import urllib.request as request
 import pandas as pd
+import numpy as np
 from utils import video2channel, channel2videos, video2comments
 from driver import get_videos_from_channels, get_comments_from_videos
 
@@ -162,7 +163,8 @@ class YoutubeAuditData(object):
             
             self.vid_idx += 1
         
-        if self.vid_idx == len(vids_with_caps):
+        comment_all_unclean = os.path.join(root_path, "comment_auditunclean.csv")
+        if self.vid_idx == len(vids_with_caps) and not os.path.isfile(comment_all_unclean):
             print("Finished collecting all comments")
             with open(comment_state, "w") as f:
                 json.dump({"vid_idx": self.vid_idx,
@@ -170,6 +172,66 @@ class YoutubeAuditData(object):
                 comment_df = pd.DataFrame(comment_data)
                 comment_df = comment_df.dropna()
                 comment_df.to_csv(comment_csv, index=False, sep='\t')
+            dfs = []
+            for filename in glob(os.path.join(root_path, "comment_audit_*.csv")):
+                df = pd.read_csv(filename, sep='\t')
+                dfs += [df]
+            df_all = pd.concat(dfs, axis=0)
+            df_all.to_csv(comment_all_unclean, index=False, sep='\t')
+        
+        # Clean all comments retrieved
+        comment_all = os.path.join(root_path, "comment_audit.csv")
+        if not os.path.isfile(comment_all):
+            df_all = None
+            df_all = pd.read_csv(comment_all_unclean, sep='\t')
+
+            df_all = df_all.dropna(axis=0, how='any')
+
+            def remove_urls(x):
+                return re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', " ", str(x))
+            
+            df_all['text'] = df_all['text'].apply(remove_urls)
+
+            def remove_whitespace_comments(row):
+                return not row['text'].isspace()
+
+            m = df_all.apply(remove_whitespace_comments, axis=1)
+            df_all = df_all[m]
+
+            df_all.to_csv(comment_all, index=False, sep='\t')
+        else:
+            df_all = pd.read_csv(comment_all, sep='\t')
+
+        # Print statistics of final scrapped data
+        print("Printing statistics:")
+        print("Columns:", df_all.columns)
+        print("Counting null values:", df_all.isna().sum())
+        print("Total comments:", len(df_all))
+        print("Earliest comment datetime:", df_all['datetime'].min())
+        print("Latest comment datetime:", df_all['datetime'].max())
+        print("Comment distribution by year:")
+        z = [s[:4] for s in df_all['datetime'].to_list()]
+        print(Counter(z))
+        print("Comment distribution by likes:")
+        z = np.array([int(i) for i in df_all['likes'].to_list()])
+        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
+        print("Comment distribution by viewer rating:")
+        z = [b for b in df_all['viewer_rating'].to_list()]
+        print(Counter(z))
+        print("Comment distribution by number of tokens:")
+        z = np.array([len(s.split(' ')) for s in df_all['text']])
+        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
+        print("Number of unique videos:", len(set(df_all['video_id'].to_list())))
+        print("Num comments distribution by video:")
+        z = df_all.groupby(['video_id']).size().to_numpy()
+        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
+        video_df = pd.read_csv(video_id_csv)
+        video_df_final = video_df[video_df["video_id"].isin(df_all["video_id"])]
+        channels_final = set(video_df_final["channel_id"].to_list())
+        print("Number of unique channels:", len(channels_final))
+        print("Num videos distribution by channel:")
+        z = video_df_final.groupby(['channel_id']).size().to_numpy()
+        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
 
 
     def update_service_idx(self) -> None:
