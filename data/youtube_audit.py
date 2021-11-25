@@ -5,6 +5,8 @@ from time import time
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import os
+import json
+from glob import glob
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 from CaptionScraper import captionScraper
@@ -20,9 +22,18 @@ QUERIES_URL = (
 VIDEO_URL = "https://github.com/social-comp/YouTubeAudit-data/blob/master/all_results.csv?raw=true"
 
 # YouTube API developer keys
+DEVELOPER_KEY_MONISH = "AIzaSyDK9A2n8Yo3tRYvHfGMEkgmilPMAE9xjMI"
+DEVELOPER_KEY_MONISH2 = "AIzaSyCYRx87mXolheLI9NP-dXS_6cHfxaFZj1g"
+DEVELOPER_KEY_MONISH3 = "AIzaSyB0f_95n_gBY8cZ7ExPeo4R_aoDTMUlEwc"
+DEVELOPER_KEY_MONISH4 = "AIzaSyCpaKV7mnFmn120uywoJGFhrGUw3fl1EDo"
+DEVELOPER_KEY_ERIC = "AIzaSyDmYvkb52fq6-V5xvzYGi5jTl6KLhytyMw"
+DEVELOPER_KEY_ASH = "AIzaSyBhsCIPer3n4C1rJT2B6n0Xt0HpX5RSvP4"
 
 # Services
 youtube_monish = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH)
+youtube_monish2 = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH2)
+youtube_monish3 = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH3)
+youtube_monish4 = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH4)
 youtube_eric = build("youtube", "v3", developerKey=DEVELOPER_KEY_ERIC)
 youtube_ash = build("youtube", "v3", developerKey=DEVELOPER_KEY_ASH)
 
@@ -32,9 +43,13 @@ tqdm.pandas()
 class YoutubeAuditData(object):
     def __init__(
         self,
-        load_state=False,
         root_path="./tmp",
-        services=[youtube_monish, youtube_eric, youtube_ash],
+        services=[youtube_monish,
+                  youtube_monish2,
+                  youtube_monish3,
+                  youtube_monish4,
+                  youtube_eric,
+                  youtube_ash],
     ) -> None:
     
         if not os.path.isdir(root_path):
@@ -49,22 +64,8 @@ class YoutubeAuditData(object):
             request.urlretrieve(VIDEO_URL, video_url_csv)
 
         self.services = services
-
-        if load_state and os.path.isfile("./state_json"):
-            self.load_state()
-        else:
-            self.root_path = root_path
-            self.service_idx = 0
-
-            # for channel2videos
-            self.curr_channel_idx = 0
-            self.curr_video_data = None
-            self.curr_video_idx = 0
-            self.video_next_page_token = ""
-
-            # for videos2comments
-            self.curr_comment_data = None
-            self.comment_next_page_token = ""
+        self.root_path = root_path
+        self.service_idx = 0
 
         vid_ids_csv = self.get_vid_ids(video_url_csv)
         channel_id_csv = self.get_channel_ids(vid_ids_csv)
@@ -89,7 +90,8 @@ class YoutubeAuditData(object):
             video_df = pd.read_csv(video_id_csv)
 
         caption_csv = os.path.join(root_path, "caption.csv")
-        if not os.path.isfile(caption_csv):
+        vids_caps_csv = os.path.join(root_path, "vids_with_caps.csv")
+        if not os.path.isfile(caption_csv) or not os.path.isfile(vids_caps_csv):
             caption_df = video_df[["video_id"]].copy()
 
             with ThreadPoolExecutor(max_workers=os.cpu_count()) as the:
@@ -101,51 +103,74 @@ class YoutubeAuditData(object):
             caption_df = caption_df.dropna(subset=["captions"])
             
             caption_df.to_csv(caption_csv, index=False)
+
+            vids_with_caps = caption_df[["video_id"]]
+            vids_with_caps.to_csv(vids_caps_csv, index=False)
         else:
-            caption_df = pd.read_csv(caption_csv)
+            vids_with_caps = pd.read_csv(vids_caps_csv)
 
-        #comment_csv = os.path.join(root_path, "comment.csv")
-        #if not os.path.isfile(comment_csv):
-        #    comment_tuple = {"video_id":[], "username":[], "comment":[]}
-        #    for i, videos in enumerate(video_lst):
-        #        comment_lst = get_comments_from_videos(videos)
-        #        comment_tuple['video_id'] += [c['video_id'] for c in comment_lst]
-        #        comment_tuple['username'] += [c['username'] for c in comment_lst]
-        #        comment_tuple['comment'] += [c['comment'] for c in comment_lst]
-        #    comment_df = pd.DataFrame(comment_tuple)
-        #    comment_df.to_csv(comment_csv)
-        #else:
-        #    comment_df = pd.read_csv(comment_csv)
+        vids_with_caps = vids_with_caps["video_id"].to_list()  # ids of vids with captions
+        caption_df = None  # clear memory
 
+        num_comment_files = len(glob(os.path.join(root_path, "comment_audit_*.csv")))
+        comment_csv = os.path.join(root_path, "comment_audit_{}.csv".format(num_comment_files))
+        print(comment_csv)
+        comment_state = os.path.join(root_path, "comment_state.json")
+        if not os.path.isfile(comment_state):
+            self.vid_idx = 0
+            self.comment_next_page_token = None
+        else:
+            with open(comment_state, "r") as f:
+                state = json.load(f)
+                self.vid_idx = state["vid_idx"]
+                self.comment_next_page_token = state["comment_next_page_token"]
+        comment_data = {"text": [], "datetime": [], "likes": [],
+                        "viewer_rating": [], "video_id": []}
 
-    def save_state(self, path="./state.json") -> None:
-        """Save data creation state to .json file."""
+        # Iterate through videos (with captions) and get comments
+        print("Starting at index", self.vid_idx)
+        while self.vid_idx < len(vids_with_caps):
+            if self.vid_idx % 100 == 0:
+                print(self.vid_idx)
 
-        state_dict = {
-            "root_path": self.root_path,
-            "service_idx": self.service_idx,
-            "curr_channel_idx": self.curr_channel_idx,
-            "curr_video_data": self.curr_video_data,
-            "curr_video_idx": self.curr_video_idx,
-            "video_next_page_token": self.video_next_page_token,
-            "curr_commment_data": self.curr_comment_data,
-            "comment_next_page_token": self.comment_next_page_token,
-        }
-        with open(path, "w") as f:
-            json.dump(state_dict, f)
+            video_id = vids_with_caps[self.vid_idx]
+            res_comment = self.get_comments_from_video(video_id)
 
-    def load_state(self, path="./state.json") -> None:
-        """Load data creation state from .json file."""
-        with open(path, "r") as f:
-            state_dict = json.load(f)
-            self.root_path = state_dict["root_path"]
-            self.service_idx = state_dict["service_idx"]
-            self.curr_channel_idx = state_dict["curr_channel_idx"]
-            self.curr_video_data = state_dict["curr_video_data"]
-            self.curr_video_idx = state_dict["curr_video_idx"]
-            self.video_next_page_token = (state_dict["video_next_page_token"],)
-            self.curr_comment_data = (state_dict["curr_comment_data"],)
-            self.comment_next_page_token = state_dict["comment_next_page_token"]
+            if not res_comment:  # if encounter an error with all api keys
+                # quota limit (probably) exceeded, save state and save csv.
+                with open(comment_state, "w") as f:
+                    json.dump({"vid_idx": self.vid_idx,
+                        "comment_next_page_token":self.comment_next_page_token}, f)
+                    comment_df = pd.DataFrame(comment_data)
+                    comment_df = comment_df.dropna()
+                    comment_df.to_csv(comment_csv, index=False, sep='\t')
+                    print("Ended at index", self.vid_idx)
+                    break
+
+            # Remove \r from comments
+            for i in range(len(res_comment[0])):
+                res_comment[0][i] = res_comment[0][i].replace("\r", " ")
+
+            comment_data["text"] += res_comment[0]
+            comment_data["datetime"] += res_comment[1]
+            comment_data["likes"] += res_comment[2]
+            comment_data["viewer_rating"] += res_comment[3]
+            comment_data["video_id"] += [video_id] * len(res_comment[0])
+
+            if len(res_comment[0]) > 0:
+                self.comment_next_page_token = res_comment[4]
+            
+            self.vid_idx += 1
+        
+        if self.vid_idx == len(vids_with_caps):
+            print("Finished collecting all comments")
+            with open(comment_state, "w") as f:
+                json.dump({"vid_idx": self.vid_idx,
+                    "comment_next_page_token":self.comment_next_page_token}, f)
+                comment_df = pd.DataFrame(comment_data)
+                comment_df = comment_df.dropna()
+                comment_df.to_csv(comment_csv, index=False, sep='\t')
+
 
     def update_service_idx(self) -> None:
         """Increment service index."""
@@ -206,103 +231,6 @@ class YoutubeAuditData(object):
 
         return channel_id_csv
 
-    def get_videos_and_comments(self, channel_id_csv, get_videos=True) -> None:
-        """TODO: add docstring"""
-
-        video_channel_csv = os.path.join(self.root_path, "video_channel.csv")
-        comment_video_csv = os.path.join(self.root_path, "comment_video.csv")
-
-        # Load from existing csv files if they exist
-        if os.path.isfile(video_channel_csv):
-            video_channel_data = pd.read_csv(video_channel_csv)
-            video_channel_data = video_channel_data.reset_index().to_dict(orient="list")
-        else:
-            video_channel_data = {
-                "video_id": [],
-                "video_date": [],
-                "video_title": [],
-                "channel_id": [],
-            }
-        if os.path.isfile(comment_video_csv):
-            comment_video_data = pd.read_csv(comment_video_csv)
-            comment_video_data = comment_video_data.reset_index().to_dict(orient="list")
-        else:
-            comment_video_data = {
-                "comment_text": [],
-                "comment_datetime": [],
-                "comment_likes": [],
-                "comment_viewer_rating": [],
-                "video_id": [],
-            }
-
-        def write_to_file():
-            video_channel_df = pd.DataFrame(video_channel_data)
-            video_channel_df.to_csv(video_channel_csv, index=False, sep="\t")
-            comment_video_df = pd.DataFrame(comment_video_data)
-            comment_video_df.to_csv(comment_video_csv, index=False)
-            self.save_state()
-
-        channel_df = pd.read_csv(channel_id_csv)
-        channel_ids = channel_df["channel_ids"].to_list()
-
-
-        while self.curr_channel_idx < len(channel_ids):  # for each channel
-            channel_id = channel_ids[self.curr_channel_idx]
-            while True:  # get all vids across iterations
-                if not self.curr_video_data:
-                    res_video = self.get_videos_from_channel(channel_id)  # get a set of vids using API
-                    if not res_video:  # if encounter an error with all api keys
-                        print("Operation failed with all api keys - they may be broken or quota limit exceeded.")
-                        write_to_file()
-                        return
-                else:  # recover data obtained from previous run
-                    res_video = self.curr_video_data
-                self.curr_video_data = res_video
-                self.curr_video_idx = 0
-                self.video_next_page_token = res_video[3]
-
-                video_channel_data["video_id"] += res_video[0]
-                video_channel_data["video_date"] += res_video[1]
-                video_channel_data["video_title"] += res_video[2]
-                video_channel_data["channel_id"] += [channel_id] * len(res_video[0])
-
-                while self.curr_video_idx < len(self.curr_video_data):  # for each video
-                    video_id = res_video[0][self.curr_video_idx]
-                    while True:  # get all comments across iterations
-                        if not self.curr_comment_data:
-                            res_comment = self.get_comments_from_video(video_id)  # get a set of comments using API
-
-                            if not res_comment:  # if encounter an error with all api keys
-                                print("Operation failed with all api keys - they may be broken or quota limit exceeded.")
-                                write_to_file()
-                                return
-                        else:  # recover data obtained from previous run
-                            res_comment = self.curr_comment_data
-
-                        self.curr_comment_data = res_comment
-                        self.comment_next_page_token = res_comment[4]
-
-                        # Update content .csv contents
-                        comment_video_data["comment_text"] += res_comment[0]
-                        comment_video_data["comment_datetime"] += res_comment[1]
-                        comment_video_data["comment_likes"] += res_comment[2]
-                        comment_video_data["comment_viewer_rating"] += res_comment[3]
-                        comment_video_data["video_id"] += [video_id] * len(res_comment[0])
-
-                        if self.comment_next_page_token == "":  # no more comments to get
-                            self.curr_comment_data = None
-                            break
-
-                    self.curr_video_idx += 1  # next video
-
-                if self.video_next_page_token == "":  # no more vids to get
-                    self.curr_video_data = None
-                    break
-
-            self.curr_channel_idx += 1  # next channel
-
-        write_to_file()
-
     def get_videos_from_channel(self, channel_id) -> tuple:
         """Get a set of video data given a channel id. Return results."""
 
@@ -316,23 +244,42 @@ class YoutubeAuditData(object):
             self.update_service_idx()
 
         return res
-
-    def get_comments_from_video(self, video_id) -> tuple:
+    
+    def get_comments_from_video(self, video_id, mult_calls=False) -> tuple:
         """Get a set of comment data given a video id. Return results."""
 
         res = None
         for _ in range(len(self.services)):  # cycle through api keys until successful
             try:
-                res = video2comments(self.services[self.service_idx], video_id, self.comment_next_page_token)
+                if mult_calls:
+                    res = video2comments(self.services[self.service_idx], video_id, self.comment_next_page_token)
+                else:
+                    res = video2comments(self.services[self.service_idx], video_id)
+                self.update_service_idx()
                 break
-            except:
-                pass
-            self.update_service_idx()
-
+            except Exception as e:
+                message = str(e)
+                #print(message)
+                self.update_service_idx()
+                if "\'reason\': \'commentsDisabled\'" in message:
+                    print("Note: comments disabled for video", video_id)
+                    res = ([], [], [], [], None)
+                    break
+                elif "\'reason\': \'videoNotFound\'" in message:
+                    print("Note: video", video_id, "could not be found")
+                    res = ([], [], [], [], None)
+                    break
+                elif "\'reason\': \'channelNotFound\'" in message:
+                    print("Note: channel corresponding to video", video_id, "could not be found")
+                    res = ([], [], [], [], None)
+                    break
+                elif "\'reason\': \'quotaExceeded\'" in message:
+                    pass
+                else:
+                    pass
+        
         return res
 
 
 if __name__ == "__main__":
-    # data = YoutubeAuditData(services=[youtube_monish,youtube_eric,youtube_ash])
-    # data.save_state()
-    data = YoutubeAuditData(load_state=True)
+    data = YoutubeAuditData()
