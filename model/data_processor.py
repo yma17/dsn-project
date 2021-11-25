@@ -1,26 +1,48 @@
+
+import torch
+print(torch.cuda.is_available())
+
 import os
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
+from transformers import (
+    AutoTokenizer,
+    AutoModel,
+    AutoModelForSeq2SeqLM,
+    pipeline,
+)
+import string
 
 import re
 from emoji import demojize
 join = os.path.join
 
+
 model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2", device='cuda')
+nlp_summarizer = pipeline(
+    "summarization", 
+    model="facebook/bart-large-cnn", 
+    tokenizer="facebook/bart-large-cnn", 
+    framework="pt", device=0,
+)
 
 def convert_to_tokens(txt, chunk=True):
     if chunk or '.' not in txt:
-        sentences = chunk_txt(txt)
+        # sentences = chunk_txt(txt)
+        summary = nlp_summarizer(txt)
+        sentences = []
+        for chunk in summary:
+            summary+=chunk['summary_text'].split('.')
     else:
-        sentences = txt.split('.')
+        sentences = txt.split(string.punctuation)
     return model.encode(sentences)
 
 def clean_txt(txt):
     txt = demojize(txt)
     txt = txt.lower()
-    txt = re.sub(r"https?://\S+", "", txt)
+    txt = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', " ", str(txt))
     txt = re.sub(r"<a[^>]*>(.*?)</a>", "", txt)
     
     txt = re.sub(r"<.*?>", "", txt)
@@ -29,8 +51,9 @@ def clean_txt(txt):
     return txt
 
 def chunk_txt(txt):
+    chunk_size = 1024
     lst = txt.split(' ')
-    chunks = [' '.join(lst[x: x+384]) for x in range(0, len(lst), 384)]
+    chunks = [' '.join(lst[x: x+chunk_size]) for x in range(0, len(lst), chunk_size)]
     return chunks
 
 
@@ -50,11 +73,12 @@ def scrubbed():
         df['com_end_idx'] = np.nan 
     else:
         df = pd.read_csv(f'./{root}/_embedd.csv', sep='\t')
-    caption_df = pd.read_csv('./tmp/caption_0.csv')[['video_id', 'captions']].to_numpy()
+   
+    caption_df = pd.read_csv('./tmp/caption.csv')[['video_id', 'captions']].to_numpy()
     caption_idx = 0
     title_idx = 0
     comment_idx = 0
-
+    
     embeddings = {'captions':[], 'titles':[], 'comments':[]}
     if os.path.isfile(f"./{root}/caption_embedd.npy"):
         embeddings['captions'] = np.load(f"./{root}/caption_embedd.npy", allow_pickle=True).tolist()
@@ -77,38 +101,13 @@ def scrubbed():
         df.loc[msk, 'title_idx'] = int(caption_idx)                  
         title_idx += 1
         pbar.update(1)
-        
 
     df.to_csv(f'./{root}/_embedd.csv', sep='\t')
 
     np.save(f"./{root}/caption_embedd.npy", np.array(embeddings['captions'], dtype=object))
     np.save(f"./{root}/title_embedd.npy", np.array(embeddings['titles'], dtype=object))
     np.save(f"./{root}/comments_embedd.npy", np.array(embeddings['comments'], dtype=object))
-    
-    # _embedding = {'video_id': [], 'cap_idx': [], 'title_idx': []}
-    # embeddings = {'captions':[], "title": [], "comments":[]}
-
-
-    # pbar = tqdm(total=video_df.shape[0], desc='title_embedd')
-
-    # title_idx = 0
-    # for video_id, title, channel_id in video_df:
-    #     title_idx += 1
-    #     title_embedd = convert_to_tokens(clean_txt(title), False)
-    #     _embedding['video_id'].append(video_id)
-    #     _embedding['title_idx'] = title_idx
-    #     embeddings['title'].append(title_embedd)
-    #     pbar.update(1)
-
-    # caption_df = pd.read_csv('./tmp/captions_0.csv')['video_id', 'title', 'channel_id']
-    # caption_idx = 0
-    # pbar_1 = tqdm
-    # for video_id, caption in caption_df:
-    #     caption_embedd = convert_to_tokens(caption)
-    #     _embedding['cap_idx'].append(caption_idx)
-    #     embeddings['captions'].append(caption_embedd)
-    #     caption_idx += 1
-
+   
 def baseline1():
     baseline = 'baseline1'
     if not os.path.isdir(f'./{baseline}'):
