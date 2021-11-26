@@ -3,6 +3,7 @@ import torch
 print(torch.cuda.is_available())
 
 import os
+import sys
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -244,6 +245,9 @@ def baseline2():
     print(len(embeddings['captions']), len(embeddings['titles'], embeddings['comments']))
 
 if __name__ == '__main__':
-   #scrubbed_noncomment()
-   scrubbed_comment()
-   #scrubbed_combined()
+    job = sys.argv[1]
+    if job == 'scrubbed_noncomment':
+        scrubbed_noncomment()
+    elif job == 'scrubbed_comment':
+        scrubbed_comment()
+    #scrubbed_combined()
