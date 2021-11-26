@@ -57,29 +57,31 @@ def chunk_txt(txt):
     return chunks
 
 
-def scrubbed():
+def scrubbed_noncomment():
     root = 'scrubbed'
     if not os.path.isdir(f'./{root}'):
         os.makedirs(f'./{root}', exist_ok=True)
     video_df = pd.read_csv('./tmp/video_id.csv')[['video_id', 'title', 'channel_id']]
     
-    if not os.path.isfile(f'./{root}/_embedd.csv'):
-        df = pd.DataFrame(columns=('video_id', 'channel_id', 'title_idx', 'cap_idx', 'com_start_idx', 'com_end_idx'))
+    if not os.path.isfile(f'./{root}/_embedd_noncomment.csv'):
+        #df = pd.DataFrame(columns=('video_id', 'channel_id', 'title_idx', 'cap_idx', 'com_start_idx', 'com_end_idx'))
+        df = pd.DataFrame(columns=('video_id', 'channel_id', 'title_idx', 'cap_idx'))
         df['video_id'] = video_df['video_id']
         df['channel_id'] = video_df['channel_id']
         df['title_idx'] = np.nan
         df['cap_idx'] = np.nan
-        df['com_start_idx'] = np.nan
-        df['com_end_idx'] = np.nan 
+        #df['com_start_idx'] = np.nan
+        #df['com_end_idx'] = np.nan 
     else:
-        df = pd.read_csv(f'./{root}/_embedd.csv', sep='\t')
+        df = pd.read_csv(f'./{root}/_embedd_noncomment.csv', sep='\t')
    
     caption_df = pd.read_csv('./tmp/caption.csv')[['video_id', 'captions']].to_numpy()
     caption_idx = 0
     title_idx = 0
-    comment_idx = 0
-    
-    embeddings = {'captions':[], 'titles':[], 'comments':[]}
+    #comment_idx = 0
+
+    #embeddings = {'captions':[], 'titles':[], 'comments':[]}
+    embeddings = {'captions':[], 'titles':[]}
     if os.path.isfile(f"./{root}/caption_embedd.npy"):
         embeddings['captions'] = np.load(f"./{root}/caption_embedd.npy", allow_pickle=True).tolist()
         caption_idx = len(embeddings['captions'])
@@ -101,13 +103,50 @@ def scrubbed():
         df.loc[msk, 'title_idx'] = int(caption_idx)                  
         title_idx += 1
         pbar.update(1)
+    pbar.close()
 
-    df.to_csv(f'./{root}/_embedd.csv', sep='\t')
+    df.to_csv(f'./{root}/_embedd_noncomment.csv', sep='\t')
 
     np.save(f"./{root}/caption_embedd.npy", np.array(embeddings['captions'], dtype=object))
     np.save(f"./{root}/title_embedd.npy", np.array(embeddings['titles'], dtype=object))
+    #np.save(f"./{root}/comments_embedd.npy", np.array(embeddings['comments'], dtype=object))
+
+def scrubbed_comment():
+    root = 'scrubbed'
+    if not os.path.isdir(f'./{root}'):
+        os.makedirs(f'./{root}', exist_ok=True)
+
+    #comment_df = pd.read_csv(f'./{root}/comment_audit.csv', sep='\t')
+    comment_df = pd.read_csv(f'./{root}/comment_sample.csv', sep='\t')
+    comment_df = comment_df[['text', 'video_id']]
+
+    if not os.path.isfile(f'./{root}/_embedd_comment.csv'):
+        df = pd.DataFrame(columns=('video_id'))
+        df['video_id'] = comment_df['video_id']
+    else:
+        df = pd.read_csv(f'./{root}/_embedd_comment.csv', sep='\t')
+
+    embeddings = {'comments': []}
+    if os.path.isfile(f"./{root}/comments_embedd.npy"):
+        embeddings['comments'] = np.load(f"./{root}/comments_embedd.npy", allow_pickle=True).tolist()
+    
+    pbar = tqdm(total=comment_df.shape[0], desc='embedding')
+
+    comment_df_np = comment_df[['video_id', 'text']].to_numpy()
+    for _, text in comment_df_np:
+        comment_embedd = convert_to_tokens(clean_txt(str(text)), True)
+        embeddings['comments'].append(comment_embedd)
+        pbar.update(1)
+    pbar.close()
+
+    df.to_csv(f'./{root}/_embedd_comment.csv', sep='\t')
     np.save(f"./{root}/comments_embedd.npy", np.array(embeddings['comments'], dtype=object))
-   
+
+def scrubbed_combined():
+    # TODO - combine embedd_noncomment and embedd_comment
+    # TODO - compute com_start_idx and com_end_idx
+    pass
+
 def baseline1():
     baseline = 'baseline1'
     if not os.path.isdir(f'./{baseline}'):
@@ -205,5 +244,6 @@ def baseline2():
     print(len(embeddings['captions']), len(embeddings['titles'], embeddings['comments']))
 
 if __name__ == '__main__':
-   scrubbed()
-
+   #scrubbed_noncomment()
+   scrubbed_comment()
+   #scrubbed_combined()
