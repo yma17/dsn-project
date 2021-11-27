@@ -1,5 +1,5 @@
 #PBS -N scrubbedComment                 # job name
-#PBS -l nodes=1:ppn=4                   # number of nodes and cores per node required
+#PBS -l nodes=1:ppn=4:nvidiagpu         # number of nodes and cores per node required
 #PBS -l pmem=16gb                        # memory per core
 #PBS -l walltime=48:00:00               # duration of the job (ex: 15 min)
 #PBS -q coc-ice-gpu                     # queue name (where job is submitted)
