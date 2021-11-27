@@ -147,20 +147,26 @@ def scrubbed_comment():
     comment_groups = comment_df.groupby('video_id')
     model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
     comment_idx = 0
-    for name, group in comment_groups:
-        df.loc[df['video_id'] == name]['com_start_idx'] = comment_idx
-        for _, text in group.to_numpy():
-            comment_embedd = convert_to_tokens(model, clean_txt(str(text)))
-            embeddings['comments'].append(comment_embedd)
-            comment_idx += 1
-            pbar.update(1)
-        df.loc[df['video_id'] == name]['com_end_idx'] = comment_idx
+    counter = 0
 
-    # for _, text in comment_df_np:
-    #     comment_embedd = convert_to_tokens(clean_txt(str(text)), True)
-    #     embeddings['comments'].append(comment_embedd)
-    #     comment_idx += 1
-    #     pbar.update(1)
+    for name, group in comment_groups:
+        com_start_idx = df.loc[df['video_id'] == name]['com_start_idx']
+        if pd.isna(com_start_idx):
+            df.loc[df['video_id'] == name]['com_start_idx'] = comment_idx
+            for _, text in group.to_numpy():
+                comment_embedd = convert_to_tokens(model, clean_txt(str(text)))
+                embeddings['comments'].append(comment_embedd)
+                comment_idx += 1
+                pbar.update(1)
+            df.loc[df['video_id'] == name]['com_end_idx'] = comment_idx
+            if counter % 10 == 0:
+                df.to_csv(f'./{root}/_embedd.csv', sep='\t')
+                np.save(f"./{root}/comments_embedd.npy", np.array(embeddings['comments'], dtype=object))
+
+        else:
+            pbar.update(group.to_numpy.shape[0])
+        counter += 1
+
     pbar.close()
 
     df.to_csv(f'./{root}/_embedd.csv', sep='\t')
