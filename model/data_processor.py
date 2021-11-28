@@ -169,7 +169,9 @@ def scrubbed_comment():
     counter = 0
     if not os.path.isfile(f"./{root}/comments_text.npy"):
         tqdm.pandas(desc='processing text')
-        comment_df['text'] = comment_df['text'].progress_apply(lambda x: pd.Series(str(x).split(string.punctuation))).reset_index().melt(id_vars='index')
+        comment_df['text'] = comment_df['text'].progress_apply(lambda x: str(x).split(string.punctuation)).reset_index().melt(id_vars='index')
+        comment_df['text'] = comment_df['text'].head().progress_apply(lambda x: str(x).split(string.punctuation)).reset_index().melt(id_vars='index')
+
         print(comment_df.head())
         np.save(f"./{root}/comments_text.npy", comment_df['text'].to_numpy(), allow_pickle=True)
 
@@ -192,8 +194,6 @@ def scrubbed_comment():
       
     pbar.close()
     df.to_csv(f'./{root}/_embedd.csv', sep='\t')
-
-
 
 
 def convert_to_embedding(root='scrubbed'):
