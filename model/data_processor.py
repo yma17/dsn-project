@@ -7,16 +7,16 @@ import sys
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from sentence_transformers import SentenceTransformer
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from transformers import BartTokenizer,BartTokenizerFast, BartForConditionalGeneration, BartConfig
 import string
 
 import re
 from emoji import demojize
 join = os.path.join
 
-def summarize_text(model, tokenizer, txt):
+def summarize_text(txt):
+    from transformers import BartTokenizer,BartTokenizerFast, BartForConditionalGeneration, BartConfig
+    model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').cuda()
+    tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
     chunks = chunk_txt(txt)    
     summary = ''
     token = tokenizer(chunks, padding='max_length', truncation=True, return_tensors='pt').to('cuda:0')
@@ -70,8 +70,7 @@ def scrubbed_captions():
     caption_df = pd.read_csv('./tmp/caption.csv')[['video_id', 'captions']]
     caption_df = caption_df.set_index(['video_id'])
     # CAPTION SUMMARIZATION
-    model = BartForConditionalGeneration.from_pretrained('facebook/bart-large-cnn').cuda()
-    tokenizer = BartTokenizerFast.from_pretrained('facebook/bart-large-cnn')
+    
 
     if not os.path.isfile('./tmp/_caption.csv'):
         pbar = tqdm(total=caption_df.shape[0], desc='summarizing')
@@ -198,6 +197,7 @@ def scrubbed_comment():
 
 
 def convert_to_embedding(root='scrubbed'):
+    from sentence_transformers import SentenceTransformer
     lst = np.load(f"./{root}/comments_text.npy", allow_pickle=True).tolist()
     model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2", device='cuda')
     return model.encode(lst, batch_size=32, show_progress_bar=True, )
