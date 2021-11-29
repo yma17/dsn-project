@@ -170,13 +170,11 @@ def scrubbed_comment():
     if not os.path.isfile(f"./{root}/comments_text.npy"):
         tqdm.pandas(desc='processing text')
         comment_df['text'] = comment_df['text'].progress_apply(lambda x: str(x).split(string.punctuation))
-        
+        comment_df = comment_df['text'].progress_apply(pd.Series).melt(id_vars=['video_id'], value_name='text')
         print(comment_df.shape)
         print(comment_df.head())
-        comment_df['text'] = comment_df['text'].progress_apply(pd.Series).reset_index().melt(id_vars='index')
-        print(comment_df.shape)
-        print(comment_df.head())
-        np.save(f"./{root}/comments_text.npy", comment_df['text'].to_numpy(), allow_pickle=True)
+        comment_df.to_csv("./{root}/processed_comment_text.csv", sep='\t', usecols=fields)
+        # np.save(f"./{root}/comments_text.npy", comment_df['text'].to_numpy(), allow_pickle=True).dropna()
 
     pbar = tqdm(total=comment_df.shape[0], desc='updating embedding csv')
     comment_groups = comment_df.groupby('video_id')
