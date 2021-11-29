@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 from utils import video2channel, channel2videos, video2comments
 from driver import get_videos_from_channels, get_comments_from_videos
+from print_stats import print_comment_statistics, print_caption_statistics
 
 # Links to raw data
 QUERIES_URL = (
@@ -203,28 +204,8 @@ class YoutubeAuditData(object):
             df_all = pd.read_csv(comment_all, sep='\t')
 
         # Print statistics of final scrapped data
-        print("Printing statistics:")
-        print("Columns:", df_all.columns)
-        print("Counting null values:", df_all.isna().sum())
-        print("Total comments:", len(df_all))
-        print("Earliest comment datetime:", df_all['datetime'].min())
-        print("Latest comment datetime:", df_all['datetime'].max())
-        print("Comment distribution by year:")
-        z = [s[:4] for s in df_all['datetime'].to_list()]
-        print(Counter(z))
-        print("Comment distribution by likes:")
-        z = np.array([int(i) for i in df_all['likes'].to_list()])
-        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
-        print("Comment distribution by viewer rating:")
-        z = [b for b in df_all['viewer_rating'].to_list()]
-        print(Counter(z))
-        print("Comment distribution by number of tokens:")
-        z = np.array([len(s.split(' ')) for s in df_all['text']])
-        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
-        print("Number of unique videos:", len(set(df_all['video_id'].to_list())))
-        print("Num comments distribution by video:")
-        z = df_all.groupby(['video_id']).size().to_numpy()
-        print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
+        print_comment_statistics(df_all)
+
         video_df = pd.read_csv(video_id_csv)
         video_df_final = video_df[video_df["video_id"].isin(df_all["video_id"])]
         channels_final = set(video_df_final["channel_id"].to_list())
@@ -343,5 +324,49 @@ class YoutubeAuditData(object):
         return res
 
 
+def get_data_subset():
+    """
+    Generate subset of data under the following criteria:
+    - each channel must have no fewer than 20 videos
+    - each channel must have no more than 100 videos
+    """
+    root_path = './tmp'
+    video_id_csv = os.path.join(root_path, "video_id.csv")
+    video_df = pd.read_csv(video_id_csv)
+
+    comment_all = os.path.join(root_path, "comment_audit.csv")
+    comment_df = pd.read_csv(comment_all, sep='\t')
+
+    # Remove all vids from video_df with no captions or no comments
+    video_df = video_df[video_df['video_id'].isin(comment_df['video_id'])]
+
+    # Filter up to 100 videos per channel
+    video_df = video_df.groupby('channel_id').head(100).reset_index(drop=True)
+
+    # Filter channels to no less than 20 per channel
+    video_df = video_df.groupby('channel_id').filter(lambda x : len(x) >= 20)
+
+    print("Num filtered videos:", len(video_df))
+    print("Num filtered channels:", len(set(video_df['channel_id'].to_list())))
+    #print(video_df['channel_id'].value_counts())
+    print("Num videos distribution by channel:")
+    z = video_df.groupby(['channel_id']).size().to_numpy()
+    print("min,max,avg,std", z.min(), z.max(), z.mean(), z.std())
+    video_df.to_csv(os.path.join(root_path, 'video_id_subset.csv'), index=False)
+    
+    comment_df = comment_df[comment_df['video_id'].isin(video_df['video_id'])]
+    print_comment_statistics(comment_df)
+    comment_df.to_csv(os.path.join(root_path, 'comment_subset.csv'), index=False, sep='\t')
+    comment_df = None
+
+    caption_csv = os.path.join(root_path, "caption.csv")
+    caption_df = pd.read_csv(caption_csv)
+    caption_df = caption_df[caption_df['video_id'].isin(video_df['video_id'])]
+    print_caption_statistics(caption_df)
+    caption_df.to_csv(os.path.join(root_path, 'caption_subset.csv'), index=False)
+    caption_df = None
+
+
 if __name__ == "__main__":
     data = YoutubeAuditData()
+    #get_data_subset()
