@@ -4,14 +4,14 @@ import pandas as pd
 from sentence_transformers import models, losses,  CrossEncoder
 from tqdm import trange
 
-
+root = '/home/mramados/dsn-project/'
 cross_model_name = 'cross-encoder/stsb-distilroberta-base'
-cross_encoder_path = f'./output/cross_{cross_model_name}/'
+cross_encoder_path = f'{root}/output/cross_{cross_model_name}/'
 cross_encoder = CrossEncoder(cross_encoder_path)
-baseline1 = pd.read_csv("./baseline1/_embedd.csv", usecols=['video_id', 'label', 'cap_idx'], sep='\t')
-baseline1_txt = np.load('./baseline1/caption_text.npy', allow_pickle=True)
-unsupervised_set = pd.read_csv(f'./scrubbed/_embedd.csv', usecols=['video_id', 'cap_idx'], sep='\t', low_memory=True) 
-unsupervised_txt = np.load('./scrubbed/caption_text.npy', allow_pickle=True)
+baseline1 = pd.read_csv(f"{root}/baseline1/_embedd.csv", usecols=['video_id', 'label', 'cap_idx'], sep='\t')
+baseline1_txt = np.load(f'{root}/baseline1/caption_text.npy', allow_pickle=True)
+unsupervised_set = pd.read_csv(f'{root}/scrubbed/_embedd.csv', usecols=['video_id', 'cap_idx'], sep='\t', low_memory=True) 
+unsupervised_txt = np.load(f'{root}/scrubbed/caption_text.npy', allow_pickle=True)
 
 positive_samples = baseline1[(baseline1['label'] == 1)]
 negative_samples = baseline1[baseline1['label'] == -1]
@@ -33,11 +33,23 @@ def calculate_score(df):
         _labels[i] = np.max(pred)
     return _labels
 
-positive_labels = calculate_score(positive_samples)
-negative_labels = calculate_score(negative_samples)
-neutral_labels = calculate_score(neutral_samples)
+import sys
+if __name__ == '__main__':    
+    _label = unsupervised_set['cap_idx'].copy()
+    sample = sys.argv[0]   
+    _label.to_csv(f'{root}/scrubbed/{sample}/label.csv', sep='\t')
 
-_label = unsupervised_set['cap_idx'].copy()
-_label['positive_label'] = positive_labels
-_label['negative_label'] = negative_labels
-_label['neutral_label'] = neutral_labels
+    if sample == 0:
+        neutral_labels = calculate_score(neutral_samples)
+        _label['neutral_label'] = neutral_labels
+
+    if sample == 1:
+        positive_labels = calculate_score(positive_samples)    
+        _label['positive_label'] = positive_labels
+
+    if sample == 2:
+        negative_labels = calculate_score(negative_samples)    
+        _label['negative_label'] = negative_labels
+        
+    
+    _label.to_csv(f'{root}/scrubbed/{sample}/label.csv', sep='\t')
