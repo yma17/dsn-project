@@ -1,7 +1,7 @@
 import os
 import torch
 import random
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 import pandas as pd
 import numpy as np
 from torch.utils.data.sampler import WeightedRandomSampler
@@ -128,8 +128,6 @@ class CrossEncoderDataset(Dataset):
         self.label = list(self.labels.keys())
         print(self.labels)
 
-    def __len__(self):
-        return self.iter
     
     def test(self):
         emb_csv = join(self.root, 'test.csv')
@@ -164,8 +162,11 @@ class CrossEncoderDataset(Dataset):
             _label = 1 if idx_1 == idx_2 else 0            
             sentence_pairs.append(InputExample(texts=[text1[group_text_1], text2[group_text_2]], label=_label))
         return sentence_pairs
+    
+    def __len__(self):
+        return self.iter
 
-    def __getitem__(self, idx):
+    def __getitem__(self, itex):
         idx_1 = random.randint(0, len(self.label)-1)
         idx_2 = random.randint(0, len(self.label)-1)
         label_1 = self.label[idx_1]
@@ -188,8 +189,15 @@ class CrossEncoderDataset(Dataset):
         text2 = self.caption_text[cap_idx_2]
         group_text_1 = random.randint(0, len(text1)-1)
         group_text_2 = random.randint(0, len(text2)-1)
-        label = 1 if idx_1 == idx_2 else 0
-        return  InputExample(texts=[text1[group_text_1], text2[group_text_2]], label=label)
+        
+        if label_1 == label_2:
+            label = 1
+        # elif label_1 + label_2 == 1:
+        #     label = 2
+        else:
+            label = 0
+        
+        return InputExample(texts=[text1[group_text_1], text2[group_text_2]], label=label)
 
 class BI_Encoder(Dataset):
     def __init__(self, root='scrubbed'):
