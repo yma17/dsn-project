@@ -4,7 +4,8 @@ import pandas as pd
 from sentence_transformers import models, losses,  CrossEncoder
 from tqdm import trange
 
-root = '/home/mramados/dsn-project/'
+# root = '/home/mramados/dsn-project/'
+root = '.'
 cross_model_name = 'cross-encoder/stsb-distilroberta-base'
 cross_encoder_path = f'{root}/output/cross_{cross_model_name}/'
 cross_encoder = CrossEncoder(cross_encoder_path)
@@ -33,10 +34,13 @@ def calculate_score(df):
         _labels[i] = np.max(pred)
     return _labels
 
+import os
 import sys
 if __name__ == '__main__':    
     _label = unsupervised_set['cap_idx'].copy()
-    sample = sys.argv[0]   
+    sample = sys.argv[1]   
+    sample = int(sample)
+    os.makedirs(f'{root}/scrubbed/{sample}')
     _label.to_csv(f'{root}/scrubbed/{sample}/label.csv', sep='\t')
 
     if sample == 0:
