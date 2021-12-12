@@ -4,8 +4,8 @@ import pandas as pd
 from sentence_transformers import models, losses,  CrossEncoder
 from tqdm import trange
 
-# root = '/home/mramados/dsn-project/'
-root = '.'
+root = '/home/mramados/dsn-project/'
+#root = '.'
 cross_model_name = 'cross-encoder/stsb-distilroberta-base'
 cross_encoder_path = f'{root}/output/cross_{cross_model_name}/'
 cross_encoder = CrossEncoder(cross_encoder_path)
