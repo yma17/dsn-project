@@ -3,11 +3,13 @@ from numpy.core.numeric import cross
 import pandas as pd
 from sentence_transformers import models, losses,  CrossEncoder
 from tqdm import trange
+import subprocess
 
-root = '/home/mramados/dsn-project/'
+
+root = '/home/mramados/dsn-project'
 #root = '.'
 cross_model_name = 'cross-encoder/stsb-distilroberta-base'
-cross_encoder_path = f'{root}/output/cross_{cross_model_name}/'
+cross_encoder_path = f'{root}/output/{cross_model_name}/'
 cross_encoder = CrossEncoder(cross_encoder_path)
 baseline1 = pd.read_csv(f"{root}/baseline1/_embedd.csv", usecols=['video_id', 'label', 'cap_idx'], sep='\t')
 baseline1_txt = np.load(f'{root}/baseline1/caption_text.npy', allow_pickle=True)
@@ -26,10 +28,13 @@ def calculate_score(df):
         sentence_pairs = []
         idx_1 = int(unsupervised_set.iloc[i]['cap_idx']) 
         for j in range(df['cap_idx'].shape[0]):
-            idx_2 = int(df.iloc[j]['cap_idx'])
-            for x in unsupervised_txt[idx_1]:
-                for y in baseline1_txt[idx_2]:
-                    sentence_pairs.append([x, y])
+            try:
+                idx_2 = int(df.iloc[j]['cap_idx'])
+                for x in unsupervised_txt[idx_1]:
+                    for y in baseline1_txt[idx_2]:
+                        sentence_pairs.append([x, y])
+            except:
+                pass
         pred = cross_encoder.predict(sentence_pairs, batch_size=256)
         _labels[i] = np.max(pred)
     return _labels
@@ -40,7 +45,7 @@ if __name__ == '__main__':
     _label = unsupervised_set['cap_idx'].copy()
     sample = sys.argv[1]   
     sample = int(sample)
-    os.makedirs(f'{root}/scrubbed/{sample}')
+    os.makedirs(f'{root}/scrubbed/{sample}', exist_ok=True)
     _label.to_csv(f'{root}/scrubbed/{sample}/label.csv', sep='\t')
 
     if sample == 0:
