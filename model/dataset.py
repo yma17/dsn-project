@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, IterableDataset
 import pandas as pd
 import numpy as np
 from torch.utils.data.sampler import WeightedRandomSampler
+from tqdm import trange
 
 join = os.path.join
 max_len = 128
@@ -200,15 +201,31 @@ class CrossEncoderDataset(Dataset):
         return InputExample(texts=[text1[group_text_1], text2[group_text_2]], label=label)
 
 class BI_Encoder(Dataset):
-    def __init__(self, root='scrubbed'):
+    def __init__(self, root='scrubbed', supervised_dataset=True):
         self.root = root
-        # supervised_set = pd.read_csv(f'./{root}/_embedd.csv', usecols=['video_id', 'cap_idx'], sep='\t', low_memory=True) 
-        self.caption_text = np.load(f'./{root}/caption_text.npy', allow_pickle=True)
+        self.supervised_dataset = supervised_dataset
+        if supervised_dataset:
+            self.supervised_set = pd.read_csv(f'./baseline1/train.csv', usecols=['video_id', 'cap_idx', 'label'], sep='\t', low_memory=True) 
+            self.caption_text = np.load(f'./baseline1/caption_text.npy', allow_pickle=True)
+            self.size = self.supervised_set['video_id'].shape[0]
+            self.sentence_pair = self.construct_dataset(self.supervised_set, self.supervised_set)
+        else:         
+            self.caption_text = np.load(f'./{root}/caption_text.npy', allow_pickle=True)
         
         
     def __len__(self):
         return len(self.sentence_pair)
-    
+
+    def test(self):
+        df = pd.read_csv(f'./baseline1/test.csv', usecols=['video_id', 'cap_idx', 'label'], sep='\t')
+        sent_pairs = self.construct_dataset(df, df)    
+        sent1, sent2, score = [], [], []
+        for (s1, s2), l in sent_pairs:
+            sent1.append(s1)
+            sent2.append(s2)
+            score.append(l)
+        return sent1, sent2, score
+
     def label(self, model):
         root = 'baseline1'
         # supervised_set = pd.read_csv(f'./{root}/_embedd.csv', usecols=['video_id', 'label', 'cap_idx'], sep='\t')             
@@ -226,7 +243,36 @@ class BI_Encoder(Dataset):
         self.sim = model.predict(self.sentence_pair, batch_size=128, show_progress_bar=True)
         return self.sim
 
+    def construct_dataset(self, df1, df2):
+        sentence_pairs = []
+        size = df2['cap_idx'].shape[0]
+        size_1 = df1['cap_idx'].shape[0]
+        for i in trange(size_1, desc='constructing dataset'):
+            idx_1, label_1 = df1.iloc[i][['cap_idx', 'label']]
+            idx_2, label_2 = df2.iloc[random.randint(0, size-1)][['cap_idx', 'label']]
+            try:
+                idx_1 = int(idx_1)
+            except:
+                idx_1 = int(idx_1.split(',')[0])
+            try:
+                idx_2 = int(idx_2)
+            except:
+                idx_2 = int(idx_2.split(',')[0])    
+            txt_1, txt_2 = self.caption_text[idx_1], self.caption_text[idx_2]
+            if label_1 == label_2:
+                label = 1
+            else:
+                label = 0
+            for l in txt_1:
+                for k in txt_2:
+                    sentence_pairs.append([(l, k), label])
+        return sentence_pairs
+
     def __getitem__(self, idx):
-        txt1, txt2 = self.sentence_pair[idx]
-        score = self.sim[idx]
-        return InputExample(texts=[txt1, txt2], score=score)
+        if not self.supervised_dataset:
+            txt1, txt2 = self.sentence_pair[idx]
+            score = self.sim[idx]
+            return InputExample(texts=[txt1, txt2], label=score)
+        else:
+            [txt1, txt2], s = self.sentence_pair[idx]
+            return InputExample(texts=[txt1, txt2], label=s)

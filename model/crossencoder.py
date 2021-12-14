@@ -17,10 +17,10 @@ batch_size = 12
 num_epochs = 30
 model_name = 'cross-encoder/stsb-distilroberta-base'
 
-
-os.makedirs('./output', exist_ok=True)
-cross_encoder_path = f'./output/cross_{model_name}/'
-bi_encoder_path = f'./output/bi_{model_name}/'
+root = '.'
+os.makedirs(f'{root}/output', exist_ok=True)
+cross_encoder_path = f'{root}/output/cross_{model_name}/'
+bi_encoder_path = f'{root}/output/bi_{model_name}/'
     
 if __name__ == '__main__':
     _dataset = CrossEncoderDataset(iter=50000)
@@ -32,11 +32,11 @@ if __name__ == '__main__':
     cross_encoder = CrossEncoder(model_name)
     warmup_steps = math.ceil(len(cross_train_data_loader) * num_epochs * 0.1) 
     cross_encoder.fit(train_dataloader=cross_train_data_loader, evaluator=evaluator, evaluation_steps=1000, epochs=num_epochs, warmup_steps=warmup_steps, output_path=cross_encoder_path, use_amp=True)
-    cross_encoder.save(cross_encoder_path)
+    cross_encoder.save(f'{root}/output/ce_out')
     crossencoder = CrossEncoder(cross_encoder_path)
 
     emb_csv = pd.read_csv(os.path.join('baseline1', 'test.csv'), usecols=['label', 'cap_idx'], sep='\t').reset_index()
-    test_data = np.load('./baseline1/caption_text.npy', allow_pickle=True)
+    test_data = np.load(f'{root}/baseline1/caption_text.npy', allow_pickle=True)
 
     positive_samples = emb_csv[(emb_csv['label'] == 1)]
     negative_samples = emb_csv[emb_csv['label'] == -1]
@@ -56,8 +56,6 @@ if __name__ == '__main__':
             except:
                 continue
         return sentence_pair
-
-
 
     positive_sentence_pair = process_samples(positive_samples)
     positive_scores = crossencoder.predict(positive_sentence_pair, show_progress_bar=True)
