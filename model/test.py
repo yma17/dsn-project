@@ -30,7 +30,7 @@ def convert_to_embedding(lst, model):
     model_embedding = []
     for i in range(len(embeddings)):
         seq = np.array(embeddings[i])
-        model_embedding.append(seq.mean(0))
+        model_embedding.append(seq.sum(0))
 
     return np.array(model_embedding, copy=False)
 
