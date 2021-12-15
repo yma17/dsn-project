@@ -24,12 +24,7 @@ QUERIES_URL = (
 VIDEO_URL = "https://github.com/social-comp/YouTubeAudit-data/blob/master/all_results.csv?raw=true"
 
 # YouTube API developer keys
-DEVELOPER_KEY_MONISH = "AIzaSyDK9A2n8Yo3tRYvHfGMEkgmilPMAE9xjMI"
-DEVELOPER_KEY_MONISH2 = "AIzaSyCYRx87mXolheLI9NP-dXS_6cHfxaFZj1g"
-DEVELOPER_KEY_MONISH3 = "AIzaSyB0f_95n_gBY8cZ7ExPeo4R_aoDTMUlEwc"
-DEVELOPER_KEY_MONISH4 = "AIzaSyCpaKV7mnFmn120uywoJGFhrGUw3fl1EDo"
-DEVELOPER_KEY_ERIC = "AIzaSyDmYvkb52fq6-V5xvzYGi5jTl6KLhytyMw"
-DEVELOPER_KEY_ASH = "AIzaSyBhsCIPer3n4C1rJT2B6n0Xt0HpX5RSvP4"
+
 
 # Services
 youtube_monish = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH)
