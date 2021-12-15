@@ -12,3 +12,7 @@ if you wish for the data please contact us, datasets are quite substantial for g
 
 ## Dependencies
 we have include a yml file for a conda envionrment that should contain all the necessary packages to train models. 
+
+## Testing
+
+If you wish to test the code please take a look at the notebooks folder and run the `baseline_evaluation.ipynb` notebook
