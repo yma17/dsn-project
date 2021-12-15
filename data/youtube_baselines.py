@@ -38,8 +38,6 @@ DATAFILES2 = COMMENTS_URLS + [TITLES_URL, VIDEOS_URL]
 DATAFILES = DATAFILES1 + DATAFILES2
 
 # YouTube API developer keys
-DEVELOPER_KEY_MONISH = "AIzaSyDK9A2n8Yo3tRYvHfGMEkgmilPMAE9xjMI"
-DEVELOPER_KEY_ERIC = "AIzaSyDmYvkb52fq6-V5xvzYGi5jTl6KLhytyMw"
 
 # Services
 youtube_monish = build("youtube", "v3", developerKey=DEVELOPER_KEY_MONISH)
