@@ -91,7 +91,7 @@ def video2comments(service, videoid, nextPageToken=""):
 
 
 if __name__ == '__main__':
-    DEVELOPER_KEY = 'AIzaSyDmYvkb52fq6-V5xvzYGi5jTl6KLhytyMw'
+
     youtube_monish = build('youtube', 'v3', developerKey=DEVELOPER_KEY)
     
    
