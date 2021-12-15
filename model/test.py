@@ -11,7 +11,7 @@ bi_encoder_path = f'{root}/output/bi_out'
 bi_encoder = SentenceTransformer(bi_encoder_path)
 # for x in bi_encoder.named_modules():
 #     print(x)
-cap_idxs = pd.read_csv('./baseline1/_embedd.csv', sep='\t', usecols=['cap_idx', 'video_id'])
+cap_idxs = pd.read_csv('./baseline1/test.csv', sep='\t', usecols=['cap_idx', 'video_id'])
 cap_txt = np.load('./baseline1/caption_text.npy', allow_pickle=True)
 baseline1 = pd.read_csv('./tmp/baseline1_videos.csv', usecols=['normalized_annotation', 'Video_ID'])
 
